@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <link rel="icon" type="image/png" href="public/medias/favicon.png" />
+    <link rel="stylesheet" type="text/css" href="style.css" />
+
+    <title>Écritures sensibles</title>
+</head>
+<body>
+    <p id="dataReader" ></p>
+
+    <div class="writing_zone">
+        <span class="lettre0">A</span>
+    </div>
+
+
+    <script src="https://cdn.socket.io/3.1.3/socket.io.min.js" integrity="sha384-cPwlPLvBTa3sKAgddT6krw0cJat7egBga3DJepJyrLl4Q9/5WLra3rrnMcyTyOnh" crossorigin="anonymous"></script>
+    <script>
+        const dataReader = document.querySelector('#dataReader')
+        const socket = io.connect('ws://localhost:3000');
+
+        //Sert au mapping des valeurs Arduino/Typo :
+        let minimum = 60;
+        let maximum = 1450;
+
+        let value;
+        let values_array = [];
+
+        let toucheRearmed = true; //Servira à détecter si la touche vient d'être relachée
+
+        let classCounter = 0;
+
+
+        function scale (number, inMin, inMax, outMin, outMax) { //Map les valeurs mini et maxi captée par arduino sur les parametres de graisse d'une typo flexible (0 - 999)
+            var scaled = (number - inMin) * (outMax - outMin) / (inMax - inMin) + outMin;
+            if (scaled <= minimum){ //Evite d'obtenir du négatif si Arduino capte en dessous de la variable "minimim" définie par moi-même
+                scaled = 0;
+            }
+            if (scaled >= 999){ //Evite d'obtenir plus de 999 si Arduino capte au dessus de la variable "maximum" définie par moi-même
+                scaled = 999;
+            }
+            return scaled; //renvoie un nombre mappé
+        }
+
+        function createLetter(){ //Créer une lettre, lui donne une class unique et push la lettre dans la div "writing_zone"
+            let newP = document.createElement('span');
+            newP.textContent = 'A';
+            newP.className = "lettre" + (classCounter + 1);
+
+            classCounter += 1;
+
+            document.querySelector(".writing_zone").append(newP);
+        }
+
+        function relache(){ //Evenement déclenché au relachement de la touche clavier
+            for(var i = 0; i<10; i++){
+                console.log(values_array[i]);
+            }//Affiche les valeurs pour pouvoir les checker
+
+            console.log ("fontWeight :" + scale (values_array[5], minimum, maximum, 0, 999));
+
+            document.querySelector(".lettre" + classCounter).style.fontWeight = scale (values_array[5], minimum, maximum, 0, 999);
+        }
+
+
+        socket.on('newDataFromInput', (data) => { //HTML capte une nouvelle data
+
+            value = parseInt(JSON.stringify(data), 10); //transforme la valeur en int et la capture dans value
+            values_array.push(data); //met la data dans un tableau
+
+            if(values_array.length > 10){ //si le tableau est trop long (à partir de 101 entrées). Il restera toujours avec 100 entrées
+                values_array.shift(); // supprime la 1ere entrée = la plus ancienne ?
+            }
+
+
+            //L'évènement de l'écriture se fait au relaché et non à l'appuie. Le relaché "imprime" la lettre à l'écran, l'appuie la fait juste grossir en temps réel
+
+            if(value > minimum){ //Valeur forte -> on est en train d'appuyer
+                toucheRearmed = false; //La touche à donc été déclenchée, on la désarme
+
+                document.querySelectorAll("span").forEach((span) => {
+                    span.style.color = "black"; //on rebalance tout en noir y compris les nouveaus span
+                    span.style.display = "inline"; //on rebalance tout display block y compris les nouveaus span
+                });
+
+                document.querySelector(".lettre" + classCounter).style.fontWeight = scale (value, minimum, maximum, 0, 999);
+            }
+            else{ //Valeur faible = la touche est libre -> on doit savoir si on vient tout juste de relacher la touche (donc écrire une lettre)
+
+                if(toucheRearmed == true){ //La touche est libre mais a déjà été réarmée (position par défaut)
+                    console.log("Personne n'appuie") //il n'y a rien à faire
+                }
+
+                else{ //La touche est libre mais est désarmée : on vient donc tout juste de la relacher
+                    toucheRearmed = true //Réarmement de la touche, puisque elle est de nouveau libre
+                    console.log("La touche a été appuyée")
+
+                    createLetter();
+                    relache(); //Déclenche l'écriture
+                }
+            }
+        })//End onData
+    </script>
+</body>
+</html>
