@@ -2,12 +2,17 @@
 
 ## Launch the project
 
-Via node :
+1. Install the node modules
 ```
-node server.js COM3
+npm install
 ```
 
-Via nodemon :
+2. Configure the arduino port in the server.js file
+```
+var portName = PORT_NAME; // ex: '/dev/cu.usbmodem1101'
+```
+
+3. Launch the app via nodemon
 ```
 nodemon server.js
 ```

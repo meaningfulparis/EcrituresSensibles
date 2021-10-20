@@ -1,3 +1,5 @@
+var portName = '/dev/cu.usbmodem1101';
+
 const express = require('express')
 const bodyParser = require('body-parser')
 const app = express()
@@ -30,7 +32,6 @@ io.on('connection', (socket) =>{
 * Port reading
 */
 var serialport = require('serialport');
-var portName = 'COM3';
 
 var myPort = new serialport(portName, {
     baudRate: 9600,
